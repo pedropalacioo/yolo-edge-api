@@ -1,0 +1,13 @@
+# Pesos do modelo
+# models/*.pt
+models/*.onnx
+
+#Output de inferencia
+output/
+
+__pycache__/
+.pytest_cache/
+.venv/
+
+images/
+.env

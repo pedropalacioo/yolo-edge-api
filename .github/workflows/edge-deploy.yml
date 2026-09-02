@@ -25,15 +25,11 @@ jobs:
           cache: pip
       - run: pip install -r app/requirements.txt pytest ruff "dvc[ssh]"
       - name: Recuperar modelo via DVC
-        env:
-          RPI_HOST: ${{ secrets.RPI_HOST }}
-          RPI_USER: ${{ secrets.RPI_USER }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.RPI_SSH_KEY }}" | tr -d '\r' > ~/.ssh/dvc_key
           chmod 600 ~/.ssh/dvc_key
-          dvc remote modify --local storage url "ssh://${RPI_USER}@${RPI_HOST}/home/${RPI_USER}/dvc-storage"
-          dvc remote modify --local storage keyfile ~/.ssh/dvc_key
+          dvc remote modify --local local_remote keyfile ~/.ssh/dvc_key
           dvc pull
       - name: Disponibilizar modelo no caminho da API
         run: |
@@ -92,15 +88,11 @@ jobs:
           cache: pip
       - run: pip install ultralytics "dvc[ssh]"
       - name: Recuperar modelo via DVC
-        env:
-          RPI_HOST: ${{ secrets.RPI_HOST }}
-          RPI_USER: ${{ secrets.RPI_USER }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.RPI_SSH_KEY }}" | tr -d '\r' > ~/.ssh/dvc_key
           chmod 600 ~/.ssh/dvc_key
-          dvc remote modify --local storage url "ssh://${RPI_USER}@${RPI_HOST}/home/${RPI_USER}/dvc-storage"
-          dvc remote modify --local storage keyfile ~/.ssh/dvc_key
+          dvc remote modify --local local_remote keyfile ~/.ssh/dvc_key
           dvc pull
       - run: python scripts/validate_model.py --threshold 0.50
 

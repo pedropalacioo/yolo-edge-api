@@ -1,29 +1,41 @@
 import base64
 import io
+import json
 import time
+import uuid
 
+import httpx
+import numpy as np
 from fastapi import FastAPI, HTTPException, Response
 from PIL import Image
-import numpy as np
-import httpx
 
+from app.model import get_default_model_name, load_model
 from app.schemas import (
-    PredictRequest,
-    PredictResponse,
     BatchPredictRequest,
     BatchPredictResponse,
+    Detection,
     HealthResponse,
     MetricsResponse,
-    Detection,
+    PredictRequest,
+    PredictResponse,
 )
-from app.model import load_model, get_default_model_name
-
 
 app = FastAPI(
     title="YOLO Inference API",
     description="API REST para inferência com YOLOv8 no Raspberry Pi 5",
     version="1.0.0",
 )
+
+
+def log_event(event: str, level: str = "INFO", **kwargs):
+    """Emite um evento estruturado em JSON para stdout."""
+    record = {
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "level": level,
+        "event": event,
+        **kwargs,
+    }
+    print(json.dumps(record, ensure_ascii=False), flush=True)
 
 
 # ── Métricas simples em memória ─────────────────────────────
@@ -75,10 +87,10 @@ def _load_image_from_request(request: PredictRequest) -> np.ndarray:
     except HTTPException:
         raise
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - converte falhas de leitura em HTTP 400
         raise HTTPException(
             status_code=400,
-            detail=f"Erro ao carregar imagem: {str(e)}",
+            detail=f"Erro ao carregar imagem: {e!s}",
         )
 
 
@@ -156,7 +168,7 @@ def health():
             model_name=model_name,
         )
 
-    except Exception:
+    except Exception:  # noqa: BLE001 - health check deve reportar qualquer falha do modelo
         return HealthResponse(
             status="error",
             model_loaded=False,
@@ -171,8 +183,15 @@ def health():
     response_model=PredictResponse,
 )
 def predict(request: PredictRequest):
-
+    request_id = str(uuid.uuid4())[:8]
     _metrics["total"] += 1
+
+    log_event(
+        "predict_start",
+        request_id=request_id,
+        model=request.model_name,
+        confidence=request.confidence,
+    )
 
     try:
         image = _load_image_from_request(request)
@@ -186,18 +205,35 @@ def predict(request: PredictRequest):
         _metrics["success"] += 1
         _metrics["total_ms"] += result.inference_ms
 
+        log_event(
+            "predict_complete",
+            request_id=request_id,
+            model=result.model_used,
+            detections=len(result.detections),
+            inference_ms=result.inference_ms,
+            image_size=f"{result.image_width}x{result.image_height}",
+        )
+
         return result
 
-    except HTTPException:
+    except HTTPException as e:
+        log_event(
+            "predict_error",
+            level="WARN" if e.status_code < 500 else "ERROR",
+            request_id=request_id,
+            reason=str(e.detail),
+        )
         raise
 
     except FileNotFoundError as e:
+        log_event("predict_error", level="ERROR", request_id=request_id, reason=str(e))
         raise HTTPException(
             status_code=404,
             detail=str(e),
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - fronteira da API registra falhas inesperadas
+        log_event("predict_error", level="ERROR", request_id=request_id, reason=str(e))
         raise HTTPException(
             status_code=500,
             detail=str(e),
@@ -241,7 +277,7 @@ def predict_image(request: PredictRequest):
     except HTTPException:
         raise
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - converte falhas do YOLO/Pillow em HTTP 500
         raise HTTPException(
             status_code=500,
             detail=str(e),

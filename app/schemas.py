@@ -1,14 +1,13 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
 
 
 class PredictRequest(BaseModel):
-    image_base64: Optional[str] = Field(
+    image_base64: str | None = Field(
         None,
         description="Imagem codificada em base64"
     )
 
-    image_url: Optional[str] = Field(
+    image_url: str | None = Field(
         None,
         description="URL pública da imagem"
     )
@@ -27,11 +26,11 @@ class PredictRequest(BaseModel):
 class Detection(BaseModel):
     label: str
     confidence: float
-    bbox: List[float]
+    bbox: list[float]
 
 
 class PredictResponse(BaseModel):
-    detections: List[Detection]
+    detections: list[Detection]
     inference_ms: float
     model_used: str
     image_width: int
@@ -39,7 +38,7 @@ class PredictResponse(BaseModel):
 
 
 class BatchPredictRequest(BaseModel):
-    images_base64: List[str]
+    images_base64: list[str]
 
     confidence: float = Field(
         0.25,
@@ -53,7 +52,7 @@ class BatchPredictRequest(BaseModel):
 
 
 class BatchPredictResponse(BaseModel):
-    results: List[PredictResponse]
+    results: list[PredictResponse]
     total_inference_ms: float
 
 

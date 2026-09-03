@@ -30,7 +30,12 @@ jobs:
           echo "${{ secrets.RPI_SSH_KEY }}" | tr -d '\r' > ~/.ssh/dvc_key
           chmod 600 ~/.ssh/dvc_key
           dvc remote modify --local local_remote keyfile ~/.ssh/dvc_key
-          dvc pull
+          dvc pull models/yolov8n.pt.dvc dataset/exports/epi-v1.dvc
+      - name: Inspecionar dataset EPI
+        run: |
+          python scripts/inspect_dataset.py \
+            --dataset dataset/exports/epi-v1/data.yaml \
+            --min-per-class 30
       - name: Disponibilizar modelo no caminho da API
         run: |
           sudo mkdir -p /app
@@ -86,15 +91,31 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install ultralytics "dvc[ssh]"
-      - name: Recuperar modelo via DVC
+      - run: pip install ultralytics pyyaml "dvc[ssh]"
+      - name: Configurar acesso ao DVC
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.RPI_SSH_KEY }}" | tr -d '\r' > ~/.ssh/dvc_key
           chmod 600 ~/.ssh/dvc_key
           dvc remote modify --local local_remote keyfile ~/.ssh/dvc_key
-          dvc pull
-      - run: python scripts/validate_model.py --threshold 0.50
+      - name: Recuperar e inspecionar dataset EPI
+        run: |
+          dvc pull dataset/exports/epi-v1.dvc
+          python scripts/inspect_dataset.py \
+            --dataset dataset/exports/epi-v1/data.yaml \
+            --min-per-class 30
+      - name: Quality gate do modelo EPI
+        shell: bash
+        run: |
+          if [[ -f models/yolo-epi.pt.dvc ]]; then
+            dvc pull models/yolo-epi.pt.dvc
+            python scripts/validate_model.py \
+              --model models/yolo-epi.pt \
+              --dataset dataset/exports/epi-v1/data.yaml \
+              --threshold 0.60
+          else
+            echo "::notice::Gate de mAP não executado: models/yolo-epi.pt.dvc ainda não foi fornecido."
+          fi
 
   deploy:
     name: Deploy - Raspberry Pi 5

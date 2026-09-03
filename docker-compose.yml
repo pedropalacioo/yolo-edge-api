@@ -1,5 +1,6 @@
 services:
   yolo-api:
+    image: ${IMAGE:-ghcr.io/pedropalacioo/yolo-edge-api/yolo-api:latest}
     build:
       context: .
       dockerfile: Dockerfile.api
@@ -53,6 +54,46 @@ services:
     depends_on:
       yolo-api:
         condition: service_healthy
+
+  yolo-stream:
+    build:
+      context: .
+      dockerfile: Dockerfile.stream
+
+    container_name: yolo-stream
+
+    ports:
+      - "5000:5000"
+
+    privileged: true
+
+    volumes:
+      - ./models:/app/models:ro
+      - /dev:/dev
+      - /run/udev:/run/udev:ro
+
+    environment:
+      MODEL_PATH: models/yolov8n.pt
+      CAMERA_INDEX: "0"
+      CAMERA_WIDTH: "1280"
+      CAMERA_HEIGHT: "720"
+      CAMERA_FPS: "30"
+      INFERENCE_SIZE: "416"
+      INFER_EVERY: "2"
+      JPEG_QUALITY: "80"
+      YOLO_CONFIG_DIR: /tmp/Ultralytics
+
+    networks:
+      - yolo-net
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 
 networks:

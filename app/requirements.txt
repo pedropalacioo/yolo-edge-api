@@ -6,3 +6,4 @@ numpy
 Pillow
 python-multipart
 httpx
+Flask>=3.1,<4

@@ -1,0 +1,30 @@
+FROM python:3.11-slim-trixie
+
+WORKDIR /app
+
+# rpicam-apps comes from Raspberry Pi's Debian repository.  The image remains
+# on the same Debian release as the host to keep libcamera/IPA compatible.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && curl -fsSLo /tmp/raspberrypi-archive-keyring.deb \
+       http://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1+rpt1_all.deb \
+    && dpkg -i /tmp/raspberrypi-archive-keyring.deb \
+    && rm /tmp/raspberrypi-archive-keyring.deb \
+    && echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.pgp] http://archive.raspberrypi.com/debian/ trixie main" \
+       > /etc/apt/sources.list.d/raspi.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends rpicam-apps-lite libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY app/requirements.txt ./requirements.txt
+
+RUN pip install --no-cache-dir torch torchvision \
+      --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements.txt
+
+COPY stream/ ./stream/
+COPY models/ ./models/
+
+EXPOSE 5000
+
+CMD ["python", "-m", "stream.mjpeg_server"]

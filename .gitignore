@@ -6,8 +6,19 @@ models/*.onnx
 output/
 
 __pycache__/
+*.pyc
 .pytest_cache/
 .venv/
 
 images/
 .env
+
+# Dataset: preserve only the directory structure in Git. Dataset contents are
+# versioned with DVC.
+dataset/raw/*
+dataset/annotated/*
+dataset/exports/*
+!dataset/raw/.gitkeep
+!dataset/annotated/.gitkeep
+!dataset/exports/.gitkeep
+!dataset/exports/*.dvc

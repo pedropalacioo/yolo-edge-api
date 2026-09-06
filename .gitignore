@@ -13,6 +13,10 @@ __pycache__/
 images/
 .env
 
+# Generated preprocessing experiments
+preprocessing/outputs/
+runs/
+
 # Dataset: preserve only the directory structure in Git. Dataset contents are
 # versioned with DVC.
 dataset/raw/*

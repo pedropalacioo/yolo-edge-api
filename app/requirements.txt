@@ -6,4 +6,5 @@ numpy
 Pillow
 python-multipart
 httpx
+httpx2>=2.12,<3
 Flask>=3.1,<4

@@ -9,8 +9,10 @@ from collections import deque
 from pathlib import Path
 
 import cv2
+from PIL import Image
 from ultralytics import YOLO
 
+from preprocessing.preprocessor import PreprocessConfig, Preprocessor
 from stream.camera import LatestFrameCamera
 from stream.v1_naive import mean, positive_int
 
@@ -66,12 +68,14 @@ def run(args: argparse.Namespace) -> int:
     )
 
     model = YOLO(str(args.model))
+    preprocessor = Preprocessor(PreprocessConfig(infer_size=args.imgsz))
     writer = None
     inference_times: list[float] = []
     latencies: list[float] = []
     fps_window: deque[float] = deque(maxlen=30)
     last_sequence = -1
-    last_result = None
+    last_boxes: list[tuple[str, float, int, int, int, int]] = []
+    has_inference = False
     last_detections = 0
     inference_count = 0
     started = time.perf_counter()
@@ -89,16 +93,47 @@ def run(args: argparse.Namespace) -> int:
         with LatestFrameCamera(args.camera, args.width, args.height, args.fps) as camera:
             for index in range(args.frames):
                 frame, last_sequence, captured_at = camera.read_latest(last_sequence)
-                now = time.perf_counter()
-                inferred = index % args.infer_every == 0 or last_result is None
+                inferred = index % args.infer_every == 0 or not has_inference
                 if inferred:
+                    processed = preprocessor.process(frame)
                     infer_started = time.perf_counter()
-                    last_result = model.predict(frame, imgsz=args.imgsz, conf=args.conf, verbose=False)[0]
+                    result = model.predict(
+                        Image.fromarray(processed.frame),
+                        imgsz=args.imgsz,
+                        conf=args.conf,
+                        verbose=False,
+                    )[0]
                     infer_done = time.perf_counter()
                     inference_times.append((infer_done - infer_started) * 1000)
                     inference_count += 1
-                    last_detections = len(last_result.boxes)
-                annotated = last_result.plot(img=frame, labels=True, conf=True)
+                    has_inference = True
+                    last_boxes = []
+                    if len(result.boxes):
+                        model_boxes = result.boxes.xyxy.detach().cpu().numpy()
+                        original_boxes = preprocessor.adjust_boxes(model_boxes, processed)
+                        for box, class_id, confidence in zip(
+                            original_boxes,
+                            result.boxes.cls.detach().cpu().numpy(),
+                            result.boxes.conf.detach().cpu().numpy(),
+                            strict=True,
+                        ):
+                            x1, y1, x2, y2 = (round(value) for value in box)
+                            last_boxes.append(
+                                (model.names[int(class_id)], float(confidence), x1, y1, x2, y2)
+                            )
+                    last_detections = len(last_boxes)
+                annotated = frame.copy()
+                for label, confidence, x1, y1, x2, y2 in last_boxes:
+                    cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(
+                        annotated,
+                        f"{label} {confidence:.2f}",
+                        (x1, max(15, y1 - 6)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.55,
+                        (0, 255, 0),
+                        2,
+                    )
                 latency_ms = (time.perf_counter() - captured_at) * 1000
                 latencies.append(latency_ms)
                 fps_window.append(time.perf_counter())

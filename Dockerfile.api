@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia a aplicação
 COPY app/ ./app/
+COPY preprocessing/ ./preprocessing/
 
 # Copia os pesos do YOLO
 COPY models/ ./models/

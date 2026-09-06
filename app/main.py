@@ -4,6 +4,7 @@ import json
 import time
 import uuid
 
+import cv2
 import httpx
 import numpy as np
 from fastapi import FastAPI, HTTPException, Response
@@ -19,12 +20,15 @@ from app.schemas import (
     PredictRequest,
     PredictResponse,
 )
+from preprocessing.preprocessor import CONFIG_DEFAULT, Preprocessor
 
 app = FastAPI(
     title="YOLO Inference API",
     description="API REST para inferência com YOLOv8 no Raspberry Pi 5",
     version="1.0.0",
 )
+
+_preprocessor = Preprocessor(CONFIG_DEFAULT)
 
 
 def log_event(event: str, level: str = "INFO", **kwargs):
@@ -102,11 +106,14 @@ def _run_inference(
     """Executa inferência YOLO e converte o resultado para o schema da API."""
 
     model = load_model(model_name)
+    # Request images arrive as RGB. The reusable preprocessor has an explicit
+    # BGR input contract because it is shared with the OpenCV camera pipeline.
+    processed = _preprocessor.process(image[:, :, ::-1])
+    model_input = Image.fromarray(processed.frame)
 
     start = time.perf_counter()
-
     results = model.predict(
-        source=image,
+        source=model_input,
         conf=confidence,
         verbose=False,
     )
@@ -128,10 +135,8 @@ def _run_inference(
 
             conf = float(box.conf[0].item())
 
-            bbox = [
-                float(value)
-                for value in box.xyxy[0].tolist()
-            ]
+            box_processed = box.xyxy[0].detach().cpu().numpy().reshape(1, 4)
+            bbox = _preprocessor.adjust_boxes(box_processed, processed)[0].tolist()
 
             detections.append(
                 Detection(
@@ -248,19 +253,22 @@ def predict_image(request: PredictRequest):
     try:
         image = _load_image_from_request(request)
 
-        model = load_model(request.model_name)
+        prediction = _run_inference(image, request.model_name, request.confidence)
+        annotated = image.copy()
+        for detection in prediction.detections:
+            x1, y1, x2, y2 = (round(value) for value in detection.bbox)
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(
+                annotated,
+                f"{detection.label} {detection.confidence:.2f}",
+                (x1, max(15, y1 - 6)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 255, 0),
+                1,
+            )
 
-        results = model.predict(
-            source=image,
-            conf=request.confidence,
-            verbose=False,
-        )
-
-        annotated = results[0].plot()
-
-        annotated_rgb = annotated[:, :, ::-1]
-
-        output = Image.fromarray(annotated_rgb)
+        output = Image.fromarray(annotated)
 
         buffer = io.BytesIO()
 

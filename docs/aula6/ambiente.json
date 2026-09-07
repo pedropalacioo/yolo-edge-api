@@ -1,0 +1,50 @@
+{
+  "run_id": "20260907T172220Z_43b4f8ea",
+  "python": "3.13.15 (main, Aug  6 2026, 11:06:23) [GCC 11.4.0]",
+  "tensorflow": "2.20.0",
+  "keras": "3.13.2",
+  "build_info": {
+    "cpu_compiler": "clang 18",
+    "cuda_compute_capabilities": [
+      "sm_60",
+      "sm_70",
+      "sm_80",
+      "sm_89",
+      "compute_90"
+    ],
+    "cuda_version": "12.5.1",
+    "cudnn_version": "9",
+    "is_cuda_build": true,
+    "is_rocm_build": false,
+    "is_tensorrt_build": false
+  },
+  "gpu": "Mon Sep  7 17:13:16 2026       \n+-----------------------------------------------------------------------------------------+\n| NVIDIA-SMI 580.82.07              Driver Version: 580.82.07      CUDA Version: 13.0     |\n+-----------------------------------------+------------------------+----------------------+\n| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |\n| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |\n|                                         |                        |               MIG M. |\n|=========================================+========================+======================|\n|   0  Tesla T4                       Off |   00000000:00:04.0 Off |                    0 |\n| N/A   45C    P8             10W /   70W |       3MiB /  15360MiB |      0%      Default |\n|                                         |                        |                  N/A |\n+-----------------------------------------+------------------------+----------------------+\n\n+-----------------------------------------------------------------------------------------+\n| Processes:                                                                              |\n|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |\n|        ID   ID                                                               Usage      |\n|=========================================================================================|\n|  No running processes found                                                             |\n+-----------------------------------------------------------------------------------------+\n",
+  "seed": 42,
+  "classes": [
+    "Capacete",
+    "Colete",
+    "Pessoa"
+  ],
+  "counts": {
+    "train": {
+      "Capacete": 143,
+      "Colete": 125,
+      "Pessoa": 202
+    },
+    "validation": {
+      "Capacete": 46,
+      "Colete": 24,
+      "Pessoa": 44
+    }
+  },
+  "dataset_sha256": "fe2a5beabd4188a9684da3555e2aae61775db30ffcf06a65514972aea33cacb5",
+  "image_size": [
+    224,
+    224
+  ],
+  "batch_size": 32,
+  "optimizer": "Adam",
+  "learning_rate": 0.001,
+  "planned_epochs": 10,
+  "probe_device": "/job:localhost/replica:0/task:0/device:GPU:0"
+}

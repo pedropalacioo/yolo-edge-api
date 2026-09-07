@@ -17,6 +17,12 @@ images/
 preprocessing/outputs/
 runs/
 
+# Aula 6: artefatos binários gerados localmente ou no Colab
+datasets/aula6_classificacao/
+dataset_aula6_colab.zip
+resultados_aula6_*.zip
+mobilenetv2_epi_epoca10.keras
+
 # Dataset: preserve only the directory structure in Git. Dataset contents are
 # versioned with DVC.
 dataset/raw/*
